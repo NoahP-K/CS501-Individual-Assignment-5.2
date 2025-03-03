@@ -362,13 +362,6 @@ fun MakeCompass(ax: Float, ay: Float, az: Float,
                 mx: Float, my: Float, mz: Float,
                 innerPadding: PaddingValues, back: ()->Unit) {
     val windowInfo = calculateCurrentWindowInfo()
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-    ) {
         //SensorManager has built-in class methods to calculate orientation
         //data from magnetometer and accelerometer data. Pretty cool.
         val rotationMatrix = FloatArray(9)
@@ -436,7 +429,7 @@ fun MakeCompass(ax: Float, ay: Float, az: Float,
         val rotationMod: Float  //the needle rotation needs to be adjusted based on orientation
         //if the device is rotated, the angle needs to be adjusted properly
         if(windowInfo.orientation == Orientation.LANDSCAPE_L){
-            angle = (convertedAzimuth - 90) % 360
+            angle = (convertedAzimuth + 270) % 360
             rotationMod = 90f
         } else if(windowInfo.orientation == Orientation.LANDSCAPE_R){
             angle = (convertedAzimuth + 90) % 360
@@ -458,49 +451,105 @@ fun MakeCompass(ax: Float, ay: Float, az: Float,
             else -> "N"
         }
 
-        //display the angle and bearing to the user.
-        Text(
-            text = String.format("%.1f\u00B0 $bearing", angle),
-            textAlign = TextAlign.Center,
-            fontSize = if(windowInfo.orientation == Orientation.PORTRAIT) 48.sp else 24.sp,
+    if(windowInfo.orientation == Orientation.PORTRAIT) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
             modifier = Modifier
-                .weight(0.2f)
-                .padding(vertical = if(windowInfo.orientation == Orientation.PORTRAIT) 70.dp else 0.dp)
-        )
-
-        //Use a box to overlap a needle image over a compass image
-        Box(modifier = Modifier
-            .aspectRatio(1f)
-            .weight(0.6f)) {
-            Image(
-                painter = painterResource(R.drawable.compass_face2),
-                contentDescription = "Compass face",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .align(Alignment.Center)
-            )
-            Image(
-                painter = painterResource(R.drawable.compass_needle2),
-                contentDescription = "Compass needle",
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxHeight(0.7f)
-                    .aspectRatio(1f)
-                    .offset(x = 6.dp, y = (-6).dp)
-                    .rotate(rotationAnimation + rotationMod)  //make the needle rotate
-
-            )
-        }
-
-        //back button
-        Button(
-            onClick = {back()},
-            modifier = Modifier.weight(0.1f)
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
+            //display the angle and bearing to the user.
             Text(
-                text = "Back",
-                fontStyle = FontStyle.Italic
+                text = String.format("%.1f\u00B0 $bearing", angle),
+                textAlign = TextAlign.Center,
+                fontSize = 48.sp,
+                modifier = Modifier
             )
+
+            //Use a box to overlap a needle image over a compass image
+            Box(
+                modifier = Modifier
+                    .aspectRatio(1f)
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.compass_face2),
+                    contentDescription = "Compass face",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .align(Alignment.Center)
+                )
+                Image(
+                    painter = painterResource(R.drawable.compass_needle2),
+                    contentDescription = "Compass needle",
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxHeight(0.7f)
+                        .aspectRatio(1f)
+                        .offset(x = 6.dp, y = (-6).dp)
+                        .rotate(rotationAnimation + rotationMod)  //make the needle rotate
+
+                )
+            }
+
+            //back button
+            Button(
+                onClick = { back() },
+            ) {
+                Text(
+                    text = "Back",
+                    fontStyle = FontStyle.Italic
+                )
+            }
+        }
+    } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
+        ){
+            //display the angle and bearing to the user.
+            Text(
+                text = String.format("%.1f\u00B0 $bearing", angle),
+                textAlign = TextAlign.Center,
+                fontSize = 48.sp,
+                modifier = Modifier
+            )
+
+            //Use a box to overlap a needle image over a compass image
+            Box(
+                modifier = Modifier
+                    .aspectRatio(1f)
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.compass_face2),
+                    contentDescription = "Compass face",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .align(Alignment.Center)
+                )
+                Image(
+                    painter = painterResource(R.drawable.compass_needle2),
+                    contentDescription = "Compass needle",
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxHeight(0.7f)
+                        .aspectRatio(1f)
+                        .offset(x = 6.dp, y = (-6).dp)
+                        .rotate(rotationAnimation + rotationMod)  //make the needle rotate
+
+                )
+            }
+
+            //back button
+            Button(
+                onClick = { back() },
+            ) {
+                Text(
+                    text = "Back",
+                    fontStyle = FontStyle.Italic
+                )
+            }
         }
     }
 }
