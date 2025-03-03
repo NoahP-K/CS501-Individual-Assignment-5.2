@@ -1,11 +1,13 @@
 package com.example.individualassignment_52
 
+import android.content.Context
 import android.content.res.Configuration
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -23,10 +25,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
@@ -314,9 +318,11 @@ fun MakeLevel(roll: Float, pitch: Float, innerPadding: PaddingValues, back: ()->
                 .align(Alignment.Center)
                 .offset(
                     x = if(windowInfo.orientation == Orientation.PORTRAIT)
-                            (-1*((sz.width / 45) * pitch)/density).dp
+                            (-1*((sz.width / 90) * pitch)/density).dp
+                        else if(windowInfo.orientation == Orientation.LANDSCAPE_L)
+                            (-1*((sz.height / 90) * roll)/density).dp
                         else
-                            (((sz.height / 45) * roll)/density).dp,
+                            (((sz.height / 90) * roll)/density).dp,
                     y = 0.dp
                 )
         ){
@@ -333,9 +339,11 @@ fun MakeLevel(roll: Float, pitch: Float, innerPadding: PaddingValues, back: ()->
                 .align(Alignment.Center)
                 .offset(
                     y = if(windowInfo.orientation == Orientation.PORTRAIT)
-                            (((sz.height / 45) * roll)/density).dp
+                            (((sz.height / 90) * roll)/density).dp
+                        else if(windowInfo.orientation == Orientation.LANDSCAPE_L)
+                            (-1*((sz.width / 90) * pitch)/density).dp
                         else
-                            (((sz.width / 45) * pitch)/density).dp,
+                            (((sz.width / 90) * pitch)/density).dp,
                     x = 0.dp
                 )
         ) {
@@ -353,6 +361,7 @@ fun MakeLevel(roll: Float, pitch: Float, innerPadding: PaddingValues, back: ()->
 fun MakeCompass(ax: Float, ay: Float, az: Float,
                 mx: Float, my: Float, mz: Float,
                 innerPadding: PaddingValues, back: ()->Unit) {
+    val windowInfo = calculateCurrentWindowInfo()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -423,29 +432,46 @@ fun MakeCompass(ax: Float, ay: Float, az: Float,
 
         //get the angle of rotation for display to the user. It's the inverse of the
         //compass face rotation angle.
-        val angle = convertedAzimuth
+        val angle: Double
+        val rotationMod: Float  //the needle rotation needs to be adjusted based on orientation
+        //if the device is rotated, the angle needs to be adjusted properly
+        if(windowInfo.orientation == Orientation.LANDSCAPE_L){
+            angle = (convertedAzimuth - 90) % 360
+            rotationMod = 90f
+        } else if(windowInfo.orientation == Orientation.LANDSCAPE_R){
+            angle = (convertedAzimuth + 90) % 360
+            rotationMod = -90f
+        } else {
+            angle = convertedAzimuth
+            rotationMod = 0f
+        }
         //Sure, why not? Let's also give the general bearing.
         val bearing = when{
             angle >= 0 && angle < 30 -> "N"
-            angle >= 30 && angle < 60 -> "NE"
-            angle >= 60 && angle < 120 -> "E"
-            angle >= 120 && angle < 150 -> "SE"
+            angle >= 30 && angle < 60 -> "NW"
+            angle >= 60 && angle < 120 -> "W"
+            angle >= 120 && angle < 150 -> "SW"
             angle >= 150 && angle < 210 -> "S"
-            angle >= 210 && angle < 240 -> "SW"
-            angle >= 240 && angle < 300 -> "W"
-            angle >= 300 && angle < 330 -> "NW"
+            angle >= 210 && angle < 240 -> "SE"
+            angle >= 240 && angle < 300 -> "E"
+            angle >= 300 && angle < 330 -> "NE"
             else -> "N"
         }
 
-        //display the angle and bearing to the user
+        //display the angle and bearing to the user.
         Text(
             text = String.format("%.1f\u00B0 $bearing", angle),
             textAlign = TextAlign.Center,
-            fontSize = 48.sp
+            fontSize = if(windowInfo.orientation == Orientation.PORTRAIT) 48.sp else 24.sp,
+            modifier = Modifier
+                .weight(0.2f)
+                .padding(vertical = if(windowInfo.orientation == Orientation.PORTRAIT) 70.dp else 0.dp)
         )
 
         //Use a box to overlap a needle image over a compass image
-        Box(modifier = Modifier.aspectRatio(1f)) {
+        Box(modifier = Modifier
+            .aspectRatio(1f)
+            .weight(0.6f)) {
             Image(
                 painter = painterResource(R.drawable.compass_face2),
                 contentDescription = "Compass face",
@@ -461,7 +487,7 @@ fun MakeCompass(ax: Float, ay: Float, az: Float,
                     .fillMaxHeight(0.7f)
                     .aspectRatio(1f)
                     .offset(x = 6.dp, y = (-6).dp)
-                    .rotate(rotationAnimation)  //make the needle rotate
+                    .rotate(rotationAnimation + rotationMod)  //make the needle rotate
 
             )
         }
@@ -469,6 +495,7 @@ fun MakeCompass(ax: Float, ay: Float, az: Float,
         //back button
         Button(
             onClick = {back()},
+            modifier = Modifier.weight(0.1f)
         ) {
             Text(
                 text = "Back",
@@ -482,12 +509,21 @@ fun MakeCompass(ax: Float, ay: Float, az: Float,
 @Composable
 fun calculateCurrentWindowInfo(): WindowInfo {
     val configuration = LocalConfiguration.current
+    val context = LocalContext.current
+    val window = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     val screenWidth = configuration.screenWidthDp
     val screenHeight = configuration.screenHeightDp
     val orientation = if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
         Orientation.PORTRAIT
     } else {
-        Orientation.LANDSCAPE
+        //slight change: two possible landscapes (right and left)
+        if(window.defaultDisplay.rotation == android.view.Surface.ROTATION_90) {
+            Orientation.LANDSCAPE_R
+        } else if(window.defaultDisplay.rotation == android.view.Surface.ROTATION_270) {
+            Orientation.LANDSCAPE_L
+        } else {
+            Orientation.PORTRAIT
+        }
     }
 
     return WindowInfo(
@@ -503,15 +539,18 @@ data class WindowInfo(
     val orientation: Orientation
 )
 //Borrowed from example code. Represents screen orientation.
+//Slight change made to account for two types of landscape mode
 enum class Orientation {
     PORTRAIT,
-    LANDSCAPE
+    LANDSCAPE_R,
+    LANDSCAPE_L
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true)//, uiMode = Configuration.UI_MODE_TYPE_NORMAL,
+    //device = Devices.PIXEL, widthDp = 952, heightDp = 427)
 @Composable
 fun DefaultPreview() {
     IndividualAssignment_52Theme {
-        MakeLevel(0f, 0f, PaddingValues(), {})
+        MakeCompass(0f, 0f, 0f, 0f, 0f, 0f, PaddingValues(), {})
     }
 }
